@@ -49,4 +49,15 @@ func main() {
 	for _, pod := range podList.Items {
 		fmt.Printf(" * %s\n", pod.Name)
 	}
+
+	fmt.Println("\n=>Listing Pods in namespace kube-system:\n")
+
+	podClientII := clientset.CoreV1().Pods("kube-system")
+	podListII, err := podClientII.List(metav1.ListOptions{})
+	if err != nil {
+		panic(err)
+	}
+	for _, pod := range podListII.Items {
+		fmt.Printf(" * %s\n", pod.Name)
+	}
 }
