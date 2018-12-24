@@ -83,8 +83,19 @@ func main() {
 		panic(err)
 	}
 
+	fmt.Println("\nkubectl cluster-info ")
 	for _, something := range ks.Items {
 		fmt.Printf(" %s -> %s\n", something.GetObjectMeta().GetName(), something.GetObjectMeta().GetSelfLink())
+	}
+
+	rs, err := clientset.Extensions().ReplicaSets(apiv1.NamespaceDefault).List(metav1.ListOptions{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("\n kubectl get replicasets\n")
+	fmt.Printf("%s\t\t%s\t\t%s\t\t%s\n", "NAME", "DESIRED", "CURRENT", "READY")
+	for _, rst := range rs.Items {
+		fmt.Printf("%s\t%d\t%d\t%d\n", rst.Name, *rst.Spec.Replicas, rst.Status.Replicas, rst.Status.ReadyReplicas)
 	}
 
 }
