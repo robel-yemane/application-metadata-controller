@@ -1,48 +1,40 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func main() {
+func makeHandler(fn func(http.ResponseWriter, *http.Request, *restclient.Config)) http.HandlerFunc {
 
-	http.HandleFunc("/", handler)
-	http.HandleFunc("/ns", nsHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fn(w, r, config)
+
+	}
 
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+var kubeconfig *string
+var config *restclient.Config
 
-	var kubeconfig *string
+// var config *restclient.Config
 
-	temp := "/Users/ryemane/.kube/config"
+func handler(w http.ResponseWriter, r *http.Request, config *restclient.Config) {
 
-	kubeconfig = &temp
-	//kubeconfig := &
-
-	// const kubeconfig *string
-	// if home := homeDir(); home != "" {
-	// 	kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	// } else {
-	// 	kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	// }
-	// flag.Parse()
-
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
@@ -52,23 +44,17 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err.Error())
 	}
-	for _, pod := range pods.Items {
-		fmt.Fprintf(w, "Pod Name:- %s\n", pod.Name)
+	if len(pods.Items) > 0 {
+		for _, pod := range pods.Items {
+			fmt.Fprintf(w, "Pod Name:- %s\n", pod.Name)
+		}
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "pod items = %d", len(pods.Items))
 	}
 }
 
-func nsHandler(w http.ResponseWriter, r *http.Request) {
-
-	var kubeconfig *string
-
-	temp := "/Users/ryemane/.kube/config"
-
-	kubeconfig = &temp
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err.Error())
-	}
+func nsHandler(w http.ResponseWriter, r *http.Request, config *restclient.Config) {
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
@@ -93,4 +79,25 @@ func homeDir() string {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // windows
+}
+
+// var clientset kubernetes.Interface
+
+func main() {
+
+	if home := homeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	flag.Parse()
+
+	// create the clientset
+	// clientset, err := kubernetes.NewForConfig(config)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", makeHandler(handler))
+	mux.HandleFunc("/ns", makeHandler(nsHandler))
+	log.Fatal(http.ListenAndServe(":8080", mux))
+
 }
