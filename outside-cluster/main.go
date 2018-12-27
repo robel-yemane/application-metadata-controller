@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,5 +98,7 @@ func main() {
 	for _, rst := range rs.Items {
 		fmt.Printf("%s\t%d\t%d\t%d\n", rst.Name, *rst.Spec.Replicas, rst.Status.Replicas, rst.Status.ReadyReplicas)
 	}
+
+	io.WriteString(nil, "")
 
 }
