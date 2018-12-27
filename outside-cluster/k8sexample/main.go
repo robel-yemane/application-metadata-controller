@@ -14,31 +14,27 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func makeHandler(fn func(http.ResponseWriter, *http.Request, *restclient.Config)) http.HandlerFunc {
+var kubeconfig *string
+
+func makeHandler(fn func(http.ResponseWriter, *http.Request, *restclient.Config, *kubernetes.Clientset)) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
-			log.Fatal(err)
+			panic(err.Error())
 		}
-		fn(w, r, config)
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			panic(err.Error())
+		}
+		fn(w, r, config, clientset)
 
 	}
 
 }
 
-var kubeconfig *string
-var config *restclient.Config
-
-// var config *restclient.Config
-
-func handler(w http.ResponseWriter, r *http.Request, config *restclient.Config) {
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
+func handler(w http.ResponseWriter, r *http.Request, config *restclient.Config, clientset *kubernetes.Clientset) {
 
 	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{})
 	if err != nil {
@@ -54,13 +50,7 @@ func handler(w http.ResponseWriter, r *http.Request, config *restclient.Config) 
 	}
 }
 
-func nsHandler(w http.ResponseWriter, r *http.Request, config *restclient.Config) {
-
-	// create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
+func nsHandler(w http.ResponseWriter, r *http.Request, config *restclient.Config, clientset *kubernetes.Clientset) {
 
 	nsClient := clientset.CoreV1().Namespaces()
 	fmt.Printf("\n=> Listing all namespaces: \n\n")
@@ -81,8 +71,6 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
-// var clientset kubernetes.Interface
-
 func main() {
 
 	if home := homeDir(); home != "" {
@@ -92,12 +80,9 @@ func main() {
 	}
 	flag.Parse()
 
-	// create the clientset
-	// clientset, err := kubernetes.NewForConfig(config)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", makeHandler(handler))
-	mux.HandleFunc("/ns", makeHandler(nsHandler))
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	// mux := http.NewServeMux()
+	http.HandleFunc("/pods", makeHandler(handler))
+	http.HandleFunc("/ns", makeHandler(nsHandler))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 
 }
