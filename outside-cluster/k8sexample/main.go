@@ -23,4 +23,10 @@ func main() {
 	http.HandleFunc("/configmaps", MakeHandler(cmHandler))
 	log.Fatal(http.ListenAndServe(":8080", nil))
 
+	// helmClient := helm.NewClient()
+
+	// release, err := helmClient.ListReleases(helm.ReleaseListOption{})
+
+	// fmt.Printf("\nHelm ls:%s", release)
+
 }
